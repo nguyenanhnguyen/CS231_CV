@@ -1,0 +1,110 @@
+Báo cáo EDA dataset cho đồ án phân biệt táo hư và táo tốt
+
+Các file kết quả chi tiết lưu ở link drive dưới đây:
+https://drive.google.com/file/d/1ES_nnwYXTu3tE2r5hlTO3TdHPfXYy2b2/view?usp=sharing
+
+TỔNG QUAN DATASET
+- Tổng số file ảnh: 7,451
+- Ảnh hợp lệ: 7,451 (100%) – không có file bị hỏng
+- Số lớp: 2 (freshapples, rottenapples)
+- Định dạng: 100% PNG
+- Color mode: 6,636 ảnh RGB (89.1%), 815 ảnh RGBA (10.9%)
+
+PHÂN BỐ LỚP & CÂN BẰNG
+- freshapples:  3,215 ảnh (43.1%)
+- rottenapples: 4,236 ảnh (56.9%)
+- Tỷ lệ mất cân bằng: 1.32x (rottenapples nhiều hơn ~32%)
+- Mức mất cân bằng NHẸ, chấp nhận được cho training, nhưng nên dùng class weight hoặc stratified sampling
+
+PHÂN BỐ TRAIN / TEST
+- Train: 5,672 ảnh (76.1%) – freshapples 2,424 / rottenapples 3,248
+- Test:  1,779 ảnh (23.9%) – freshapples 791 / rottenapples 988
+- Tỷ lệ Train:Test ≈ 76:24, gần chuẩn 80:20
+- Tỷ lệ lớp trong Train và Test tương đối nhất quán (~43:57)
+
+ẢNH TRÙNG LẶP (MD5) – VẤN ĐỀ NGHIÊM TRỌNG
+- Tổng file trùng: 4,057 file thuộc 1,637 nhóm MD5
+- Ảnh unique thực sự: 5,031 / 7,451 → có 2,420 bản sao cần loại bỏ (32.5%)
+- freshapples: 3,215 file nhưng chỉ 2,088 unique (35.1% trùng)
+- rottenapples: 4,236 file nhưng chỉ 2,943 unique (30.5% trùng)
+- 783 nhóm MD5 xuất hiện Ở CẢ Train VÀ Test → DATA LEAKAGE
+- Không có ảnh trùng xuyên lớp (cùng MD5 nhưng khác label)
+- KẾT LUẬN: phải deduplicate và chia lại Train/Test để tránh leakage
+
+KÍCH THƯỚC ẢNH
+- Width:  min 150px – max 588px – trung bình 355px – median 374px
+- Height: min 142px – max 510px – trung bình 340px – median 358px
+- Phần lớn ảnh nằm trong khoảng 300–412px (IQR)
+- Kích thước KHÔNG đồng nhất → cần resize thống nhất khi training (224x224 hoặc 256x256)
+- freshapples có xu hướng nhỏ hơn (mean 333×330) so với rottenapples (mean 372×348)
+
+ASPECT RATIO (TỶ LỆ KHUNG HÌNH)
+- Trung bình: 1.05 (gần vuông)
+- Phạm vi: 0.79 – 1.39
+- freshapples: mean 1.02 (gần vuông hơn)
+- rottenapples: mean 1.07 (hơi ngang hơn)
+- Phần lớn ảnh gần vuông → resize vuông sẽ ít biến dạng
+
+DUNG LƯỢNG FILE
+- Trung bình: 124 KB – median 126 KB
+- Phạm vi: 18 KB – 367 KB
+- freshapples nhẹ hơn (mean 111 KB) vs rottenapples (mean 135 KB)
+- Dung lượng thấp → chất lượng/độ phân giải vừa phải, phù hợp cho training nhanh
+
+ĐẶC TRƯNG PIXEL (RESIZE 128×128)
+- Brightness (độ sáng trung bình):
+  + freshapples: 0.632 ± 0.093
+  + rottenapples: 0.627 ± 0.099
+  + Gần nhau, cả 2 lớp có độ sáng trung bình–khá
+- Contrast (độ tương phản):
+  + freshapples: 0.304 ± 0.053
+  + rottenapples: 0.304 ± 0.052
+  + Hầu như giống nhau → contrast không phải feature phân biệt tốt
+- Saturation (độ bão hòa màu):
+  + freshapples: 0.227 ± 0.045
+  + rottenapples: 0.226 ± 0.068
+  + Gần nhau về mean, nhưng rottenapples có std cao hơn (biến thiên nhiều hơn)
+- Tỷ lệ pixel tối (<0.2): fresh 10.9% vs rotten 11.5% – gần nhau
+- Tỷ lệ pixel sáng (>0.8): fresh 37.1% vs rotten 36.6% – gần nhau
+
+PHÂN TÍCH MÀU SẮC RGB
+- Red:   freshapples 0.735 vs rottenapples 0.744 → rotten đỏ hơn một chút
+- Green: freshapples 0.632 vs rottenapples 0.616 → fresh xanh lá hơn rõ rệt
+- Blue:  freshapples 0.527 vs rottenapples 0.520 → gần nhau
+- KHÁC BIỆT RÕ NHẤT nằm ở kênh Green: ảnh táo tươi có giá trị Green cao hơn
+- Điều này hợp lý vì táo tươi thường có phần xanh lá, táo hỏng ngả nâu/đỏ sẫm
+
+ẢNH RGBA
+- 815 ảnh (10.9%) có kênh alpha (RGBA thay vì RGB)
+- freshapples: 318 ảnh RGBA / rottenapples: 497 ảnh RGBA
+- Cần convert sang RGB trước khi training (đã xử lý trong pixel features)
+
+NHẬN XÉT CHUNG VÀ GỢI Ý
+- Dataset có quy mô VỪA (~5k ảnh unique), đủ cho fine-tuning hoặc transfer learning
+- Mất cân bằng nhẹ (1.32x) → dùng class_weight='balanced' hoặc oversampling
+- VẤN ĐỀ LỚN NHẤT: 32.5% ảnh trùng + 783 nhóm leak giữa Train/Test
+  + Bước 1: deduplicate theo MD5
+  + Bước 2: chia lại Train/Test/Val từ tập unique, stratified theo label
+- Kích thước ảnh không đồng nhất → resize về 224×224 hoặc 256×256
+- Đặc trưng pixel-level (brightness, contrast, saturation) gần nhau giữa 2 lớp
+  → model cần học features phức tạp hơn (texture, hình dạng vết thối...)
+  → nên dùng CNN pre-trained (ResNet, EfficientNet) thay vì feature thủ công
+- Khác biệt rõ nhất ở kênh Green → có thể hữu ích cho feature engineering đơn giản
+- Convert tất cả RGBA → RGB trước pipeline training
+
+================================================================================
+  Output files: eda_outputs/
+  - metadata.csv              : metadata toàn bộ ảnh
+  - class_counts.csv           : số lượng ảnh theo split × label
+  - size_summary.csv           : thống kê kích thước theo lớp
+  - duplicates.csv             : danh sách ảnh trùng MD5
+  - pixel_summary.csv          : thống kê pixel features theo lớp
+  - valid_with_features.csv    : metadata + pixel features (ảnh hợp lệ)
+  - class_balance.png          : biểu đồ phân bố lớp
+  - size_distributions.png     : biểu đồ phân bố kích thước
+  - pixel_analysis.png         : biểu đồ phân tích pixel
+  - samples_freshapples.png    : ảnh mẫu freshapples
+  - samples_rottenapples.png   : ảnh mẫu rottenapples
+================================================================================
+
+
